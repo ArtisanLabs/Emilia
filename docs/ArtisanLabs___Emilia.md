@@ -1,0 +1,1 @@
+/run/user/1001/keybase/kbfs/team/arpagonco/logseq-git-crypt/pages/ArtisanLabs___Emilia.md
