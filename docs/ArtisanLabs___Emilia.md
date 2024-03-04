@@ -1,1 +1,242 @@
-/run/user/1001/keybase/kbfs/team/arpagonco/logseq-git-crypt/pages/ArtisanLabs___Emilia.md
+# Description
+collapsed:: true
+	- Emilia is an AI-powered assistant designed to facilitate communication and knowledge management within an organization. She can participate in conference calls, record and summarize conversations, and even initiate calls between colleagues. Emilia is also capable of learning from interactions, identifying operational policies and procedures, and filling knowledge gaps by asking pertinent questions. Furthermore, she can retrieve policies from documents and structure training programs based on the roles within an organization. Emilia's goal is to improve efficiency, collaboration, and knowledge sharing in the workplace.
+- # Papers
+  collapsed:: true
+	- https://huggingface.co/papers/2402.16671
+	-
+- # Knowles I
+  collapsed:: true
+	- ## Goal
+		- Host calls and text exchanges (VOIP or Phone) where the AI listens in to the conversations of two colleagues
+	- ## SuD Flow
+		- ###  🟢 Case 1: Host calls employee first, then the AI
+			- 1. Host calls the employee
+			- 2. Employee picks up
+			- 3. Host calls the AI to conference it in
+			- 4. AI picks up, Host says “conference in”
+			- 5. Host immediately adds the AI to the conference call
+			- 6. The AI starts recording the conversation and learning
+			- 7. Host ends the call
+			- 8. The AI sends a summary of the conversation to the Host through email
+		- ### 🟢 Case 2: Host asks the AI to call a certain employee through text, the AI calls the employee and connects them to the host
+			- 1. Host texts the AI: “Call Jamie”
+			- 2. The AI knows who Jamie is and calls in
+			- 3. When Jamie picks up, the AI immediately calls the Host, says to Jamie “Hi Jamie, this is a call from Host, hold on one sec”
+			- 4. The AI conferences in Jamie and the Host
+		- #### Alternative flow if Jamie doesn’t pick up:
+			- 1. Jamie doesn’t pick up
+			- 2. The AI notifies the host through text, tries again one more time
+			- 3. Flow continues
+		- ####  Alternative flow if host doesn’t pick up:
+			- 1. Host doesn’t pick up after three tries
+			- 2. Apologize to Jamie and notify host “My apologies Jamie, it seems that Host got busy. I’ll connect you through text”
+			- 3. Text both of them “Hello Host, you asked me to call Jamie but you were not available. Let me know if you’d like me to try again.
+		- ### 🟢 Case 3: Employee calls the host, the host conferences in the AI
+			- 1. Host calls the AI to conference it in
+			- 2. AI picks up, Host says “I’ll loop you in”
+			- 3. Host immediately adds the AI to the conference call
+			- 4. The AI starts recording the conversation and learning
+			- 5. Host ends the call
+			- 6. The AI sends a summary of the conversation to the Host through email
+		- ### 🔴 Case 4: Host and Employee text with the intervention of the AI
+			- 1. Host has an active group chat with the AI and the employee
+			- 2. The AI summarizes all conversations and logs them on the employee and host databases
+	- ## Acceptance criteria
+		- Host can call the AI to conference it in.
+		- Host can exchange texts that are recorded by the AI with employee.
+		- AI can call employee and host as needed and conference them in.
+		- Summaries of conversations are stored and emailed.
+	- # Techincal Notes
+		- Cases 1 and 3 are similar cases. There are 2 ways to do it:
+			- Using a conference system, but it seems unnecessary as there are only 2 participants in the conference.
+			- Using the native conference system of the phone. In this case, 1 and 3 are the same.
+		- Case 2:
+			- The challenge or the greatest complexity is in scheduling. As it is proposed, it is simple. But there could be complex scheduling scenarios. Like call me in 15 min... or things like that.
+			- SMS is very good for sending short commands to the AI.
+		- Case 4
+			- is difficult to do by MMS. Due to compatibility and cost issues between operators.
+			- Case 4 is feasible in over-the-top (OTT) applications like Whatsapp, Telegram...
+		- Doubts
+			- Personal Phonebook /Vs/ Corporative PhoneBook
+	- ## Technical requirements
+		- SMS commands
+			- Simple Agent to Connect Calls.
+		- Vocode Passive Custom Agent
+			- This agent does not react or respond, it only transcribes and stores.
+	- ## Development timeline
+		- ?
+	- ## Pre-requisites
+		- ?
+- # Knowles II
+  id:: 65df4b46-2da7-4885-9b09-2f6cb2d73b71
+  collapsed:: true
+	- ## Goal
+	- Learn about operational policies and SOPs from a chat or voice call
+	- ## SuD Flow
+		- ### Case 1: The AI records a new interaction and will generate a new piece of knowledge.
+			- 1. A new interaction is recorded.
+			- 2. The AI analyzes if there are any policies or decisions within the interaction.
+			- 3. The AI identifies if an existing category for policies or decisions is a good fit for the new insight.
+			- 4. The AI identifies if any similar policies or decisions exist, and if the new insight overrides or complements it.
+			- 5. If the new insight does not override AND does not complement any existing policies/decisions, and a category exists, then the policy/decision is created in the category.
+			- 6. If the new insight does not override AND does not complement any existing policies/ decisions, and a category does not exist, then the policy/decision is created as well as the new category.
+			- 7. If the new insight does override or complement any existing policies/decisions, the AI confirms with the HOST if it should override or complement.
+			- 8. The HOST decides. The decision is implemented.
+			- 9. If the HOST does not decide, the policy/decision is kept in the pending insights to be addressed database.
+	- ## Acceptance criteria
+		- New insights are created
+		- New categories are created
+		- Existing insights are complemented or replaced according to HOST instructions
+	- ## Technical requirements
+		- Knowledege base Design.
+		- AI Extraciton agents.
+		- AI Content Categorization agents.
+		- [Building a Knowledge Graph Using BERT Based NER and Neo4j, Then Predict Unknown Links  by Derrick Wang  Medium](https://medium.com/@derrickfwang/building-a-knowledge-graph-using-bert-based-ner-and-neo4j-then-predict-unknown-links-94f43fc2f9c1)
+	- ## Techincal Notes
+		- The most important thing is to have a knowledge base structure for AI to navigate in a decision tree. Essentially, the first step is to broadly identify the logical blocks that are identified in a conversation.
+			- This is a Decision.
+			- This is a Policy.
+			- This is a Knowledge Base article.
+			  collapsed:: true
+				- What categories?
+			- This is a piece of useful unstructured information.
+			- This is a insight
+			- This is a unanswered question
+		- 7, 8, 9 ??
+			- ## Wikis vs. Traditional information flow:
+				- **Centralized vs. Decentralized:** Wikis allow everyone to create and edit information, democratizing knowledge.
+				- **Hierarchical vs. Collaborative:** Wikis promote teamwork and the exchange of ideas.
+				- **Limited vs. Transparent:** Wikis make information accessible to all employees, increasing trust.
+				- **Wikis can improve communication, collaboration, and knowledge sharing in companies.**
+			- It's a UX challenge, I imagine a Knowledge Base system versioned and forked by conversations. More alive than static.
+			- The decision by the host is an information flow problem.
+			- It is evident that we are going to need approval systems, but we have to devise a way that this has the least possible friction.
+			- ![](https://cdn.midjourney.com/23996bd9-4b64-44b1-8adc-ce0320b5d958/0_0.webp){:height 1032, :width 1024}
+	- ## Development timeline
+		-
+	- ## Pre-requisites
+		- We need a knowledge base
+		- Knwoledge Base Design {{video https://www.youtube.com/watch?v=fRwkt3lAnmo}}
+- # Knowles III
+  collapsed:: true
+	- ## Goal
+		- Ask questions to clarify gaps in operations
+	- ## SuD Flow
+		- ### Case 1: A new insight is recorded, the AI finds a gap in knowledge
+			- 1. A new insight is recorded.
+			- 2. The AI formulates questions about the insight and tries to find answers within its knowledgebase.
+			- 3. The AI does not find answers for one or more questions.
+			- 4. Another prompt is asked to audit the question: How important is this for the operation? Is this a valid question or is it pushing the boundaries of what should be obvious?
+			- 5. If the question is important and it's a valid question that is non-obvious, the AI adds the question to a queue of questions.
+			- 6. At the end of the day, the AI emails the queue of questions to HOST and asks HOST to call, email, or text the replies.
+			- 7. If no reply has been received, the question is added to the next day. After having existed for five days in a row it is recorded in the database and is no longer added.
+	- ## Acceptance criteria
+		- Questions are non-obvious.
+		- Emails are received recurrently.
+		- All insights recorded have their questions added, validated, or stored as obvious.
+	- ## Technical requirements
+		- New Email channel
+	- ## Techincal Notes
+		- I think it's more a step of ((65df4b46-2da7-4885-9b09-2f6cb2d73b71))
+	- ## Development timeline
+		- ?
+	- ## Pre-requisites
+		- ?
+- # Knowles IV
+  collapsed:: true
+	- ## Goal
+		- Retrieve policies and processes from documents
+	- ## SuD Flow
+		- ### Case 1: An employee asks a question, appropriate answers are given or questions are forwarded
+			- 1. Employee texts or calls the AI
+			- 2. The AI greets the employee, and asks them to identify themselves (Hi, NAME. Could you please confirm your last name and role to validate your identity?)
+			- 3. FOR NOW: No validation beyond phone number.
+			- 4. The AI asks the employee how can she help.
+			- 5. The employee asks a question.
+			- 6. The AI searches the knowledgebase.
+			- 7. If there is an answer the AI retrieves it and gives it to the employee.
+			- 8. If there is no answer, the AI assesses if a follow-up question is pertinent, goes back to 6, and if definitely no answer is found, the AI forwards the question to the HOST in a group chat.
+				- a. The AI lets the employee know that she doesn’t have a recorded answer but will try to get it for him.
+	- ## Acceptance criteria
+		- 9/10 recorded answers (audited) are provided.
+		- Questions are followed-up on group chats through text.
+		- The AI can take questions following the logic above through text, call, or voice note.
+	- ## Technical requirements
+		- Building Performant RAG Applications for Production
+	- ## Techincal Notes
+		- The topic of group chats and MMS comes up again. Do it in OTT until the MMS issue is evaluated.
+		- Reseach: Building Performant RAG Applications for Production
+			- Recursive Retriever + Query Engine Demo
+			- Document Summary Index
+			- Metadata Replacement + Node Sentence Window
+			- Auto-Retrieval from a Vector Database
+			- Document Summary Index
+			- Recursive Retriever + Document Agents
+			- Comparing Methods for Structured Retrieval (Auto-Retrieval vs. Recursive Retrieval)
+			- Sub Question Query Engine
+			- Joint QA Summary Query Engine
+			- Recursive Retriever + Document Agents
+			- Router Query Engine
+			- OpenAI Agent + Query Engine Experimental Cookbook
+			- OpenAI Agent Query Planning
+			- Embedding Fine-tuning Guide
+	- ## Development timeline
+		- ?
+	- ## Pre-requisites
+		- ?
+- # Drucker I
+  collapsed:: true
+	- ## Goal
+		- The AI is able to create and understand the different roles in the organization and how they relate to one another as well as their relation to policies, decisions, and insights
+	- ## SuD Flow
+		- 1. Using the prior capacities, the AI creates a list of organization roles and hierarchy.
+		- 2. AI emails the host the organization structure and asks for clarification.
+		- 3. Host confirms structure roles.
+		- 4. AI groups policies, decisions, and insights in relation to categories and relates them to roles.
+		- 5. A spreadsheet of roles and related categories, policies, decisions, and insights is created.
+		- 6. The spreadsheet is approved by the host.
+		- 7. The database is structured.
+	- ## Acceptance criteria
+		- >90% of audited logics make sense and are manually corrected.
+	- ## Technical requirements
+		- ?
+	- ## Techincal Notes
+		- This seems to be an entity extraction system directly from the KB. I'm not sure if that's the case.
+		- It could be an automatic generator of the Organization chart.
+		- I'm not very sure that there is much value in using AI for this task.
+		- It could also be an AI-assisted information gathering.
+	- ## Development timeline
+		- ?
+	- ## Pre-requisites
+		- ?
+- # Drucker II
+  collapsed:: true
+	- ## Goal
+		- Structure a training program
+	- ## SuD Flow
+		- 1. Host asks the AI to develop a comprehensive training program for a given role through voice call, text, or email.
+		- 2. The AI retrieves the policies, decisions, and insights that are related to the role.
+		- 3. The AI structures an ordered list with chapters of training based on the training materials, policies, decisions, and insights.
+		- 4. The AI develops priority, order, and information gap questions for the Host.
+		- 5. The AI emails the host with the draft of the plan as well as the questions.
+		- 6. The host replies to the email and provides additional instructions.
+		- 7. A training topics plan is created.
+		- 8. The training plan is split into lessons that are 90-seconds long.
+		- 9. The lessons are created in audio and text form and made available in a database
+		- 10. The lessons are audited by an AI that makes sure that all lessons are compliant with actual policy.
+		- 11. The lessons are made available in a google spreadsheet with a tab per lesson and a file per role for approval of the Host.
+		- 12. A series of quick tests are made to validate whether the employee understood the lesson or not. Stored in a database related to the training.
+		- 13. The host approves or leaves comments.
+		- 14. Adjustments are made on the lessons.
+		- 15. A series of messages are created for the training lessons workflow and sent to the user when they're available for their next lesson.
+	- ## Acceptance criteria
+		- Training materials adhere to policy in >95% of cases
+		- Training materials are created in order for all roles based on the priorities identified
+		- Priorities topics and chapters per role identified match >80% of the expectations of the Host
+	- ## Technical requirements
+		- ?
+	- ## Development timeline
+		- ?
+	- ## Pre-requisites
+		- ?
