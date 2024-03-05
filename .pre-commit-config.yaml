@@ -1,0 +1,11 @@
+repos:
+  - repo: local
+    hooks:
+      - id: sync-docs
+        name: Sync Docs
+        entry: scripts/sync_docs.sh
+        language: script
+        # Opcional: especifica en qué etapas del commit quieres que se ejecute este hook
+        stages: [pre-commit]
+        # Opcional: si tu script no debe recibir archivos como argumentos, establece esto en false
+        pass_filenames: false

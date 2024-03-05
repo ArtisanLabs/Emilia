@@ -1,6 +1,61 @@
 # Emilia
 
 
+## Setting Up the Development Environment
+
+This project uses Poetry for dependency management and [pre-commit](pyproject.toml#14%2C1-14%2C1) to ensure code quality standards. Follow these steps to set up your development environment:
+
+### Prerequisites
+
+- Ensure you have [Poetry installed](https://python-poetry.org/docs/#installation) on your system.
+- Make sure Conda is installed as described in the previous sections for managing isolated environments.
+
+### Initialize the Project
+
+1. **Clone the Repository**: Start by cloning this repository to your local machine.
+
+   ```bash
+   git clone https://github.com/ArtisanLabs/Emilia
+   cd Emilia
+   ```
+
+2. **Install Dependencies**: Use Poetry to install the project dependencies, including `pre-commit`.
+
+   ```bash
+   poetry install
+   ```
+
+   This command reads the `pyproject.toml` file and installs all necessary dependencies in an isolated environment.
+
+3. **Activate the Conda Environment**: If you're using a Conda environment as described in the "Setting up Conda Environment" section, activate it:
+
+   ```bash
+   conda activate artisanlabs-emilia-backend
+   ```
+
+### Configure `pre-commit`
+
+After installing the dependencies, set up `pre-commit` to run automatically before each commit:
+
+1. **Install `pre-commit` Hooks**: With `pre-commit` already listed as a development dependency, install the Git hook scripts:
+
+   ```bash
+   poetry run pre-commit install
+   ```
+
+   This command sets up `pre-commit` to automatically run the configured hooks before each commit.
+
+2. **Verify Installation**: Ensure that `pre-commit` is correctly installed and configured by running:
+
+   ```bash
+   poetry run pre-commit run --all-files
+   ```
+
+   This will run all configured hooks on all files, which is useful for initial setup and verification.
+
+By following these steps, your development environment will be ready for working on the Emilia project. This setup ensures that you're using the correct versions of Python and project dependencies, while also adhering to code quality standards enforced by `pre-commit`.
+
+
 ## Development
 
 To get started with the development environment for Emilia, you will need to use Conda, a popular package and environment management system. This allows you to create an isolated environment with specific versions of Python and other dependencies required for Emilia.
