@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "emilia"
+version = "0.1.0"
+description = ""
+authors = ["Sebastian Rojo <arpagon@gmail.com>"]
+readme = "../README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pydantic = ">=2"
+psycopg2-binary = "^2.9.9"
+sqlalchemy = "^2.0.28"
+python-dotenv = "^1.0.1"
+fastapi = "^0.110.0"
+uvicorn = "^0.27.1"
+click = "^8.1.7"
+asyncpg = "^0.29.0"
+
+[tool.poetry.scripts]
+emilia = "emilia.cli:cli"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
