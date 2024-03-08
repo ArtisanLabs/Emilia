@@ -6,6 +6,7 @@ import os
 # Import your database setup
 from emilia.database.postgres import PostgresDatabase, DatabasePostgresConfig
 from emilia.database.models import User
+from emilia.models.models import UserSchema
 from emilia.database import crud
 
 # Load environment variables
@@ -42,30 +43,35 @@ async def get_db() -> AsyncSession:
     async with db.async_sessionmaker() as session:
         yield session
 
-@app.post("/users/", response_model=User)
+# Create a new user
+@app.post("/users/", response_model=UserSchema)
 async def create_user(user_data: dict, db: AsyncSession = Depends(get_db)):
     user = await crud.create_user(db, user_data=user_data)
     return user
 
-@app.get("/users/{user_id}", response_model=User)
+# Get a specific user by id
+@app.get("/users/{user_id}", response_model=UserSchema)
 async def read_user(user_id: int, db: AsyncSession = Depends(get_db)):
     user = await crud.get_user(db, user_id=user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-@app.get("/users/", response_model=list[User])
+# Get a list of users
+@app.get("/users/", response_model=list[UserSchema])
 async def read_users(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
     users = await crud.get_users(db, skip=skip, limit=limit)
     return users
 
-@app.put("/users/{user_id}", response_model=User)
+# Update a specific user by id
+@app.put("/users/{user_id}", response_model=UserSchema)
 async def update_user(user_id: int, update_data: dict, db: AsyncSession = Depends(get_db)):
     user = await crud.update_user(db, user_id=user_id, update_data=update_data)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
+# Delete a specific user by id
 @app.delete("/users/{user_id}")
 async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
     await crud.delete_user(db, user_id=user_id)
