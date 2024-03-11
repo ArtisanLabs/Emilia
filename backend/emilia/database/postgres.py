@@ -1,7 +1,6 @@
 import os
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from .base import Database, DatabaseConfig
+from sqlmodel import SQLModel, create_engine
+from emilia.database.base import Database, DatabaseConfig
 
 class DatabasePostgresConfig(DatabaseConfig):
     def __init__(self, username: str = "postgres", password: str = os.getenv("POSTGRES_PASSWORD"), db_name: str = "your_db_name", host: str = "localhost", port: str = "5432"):
@@ -15,13 +14,14 @@ class DatabasePostgresConfig(DatabaseConfig):
         return f"postgresql+asyncpg://{self.username}:{self.password}@{self.host}:{self.port}/{self.db_name}"
 
 class PostgresDatabase(Database):
-    def __init__(self, config: DatabaseConfig):
+    def __init__(self, config: DatabasePostgresConfig):
         super().__init__()
         self.config = config
 
     def setup(self) -> None:
-        async_engine = create_async_engine(
+        engine = create_engine(
             self.config.get_connection_string(),
             echo=True,  # Set to False in production
+            future=True
         )
-        self.async_sessionmaker = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+        SQLModel.metadata.create_all(engine)

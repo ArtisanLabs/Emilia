@@ -1,98 +1,93 @@
-from pydantic import BaseModel, Field
-from typing import Optional
-from datetime import datetime
 import uuid
 
-class OrganizationSchema(BaseModel):
-    id: uuid.UUID
+from typing import List
+from datetime import datetime
+from sqlmodel import SQLModel, Field, Relationship
+
+class Organization(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str
     domain: str
-    created_at: datetime
-    updated_at: datetime
-    deleted_at: Optional[datetime] = None
+    workspaces: List["Workspace"] = Relationship(back_populates="organization")
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    deleted_at: datetime = Field(nullable=True)
 
-    class Config:
-        orm_mode = True
-
-class WorkspaceSchema(BaseModel):
-    id: uuid.UUID
-    organization_id: uuid.UUID
+class Workspace(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    organization_id: uuid.UUID = Field(foreign_key="organization.id")
     name: str
-    created_at: datetime
-    updated_at: datetime
-    deleted_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    deleted_at: datetime = Field(nullable=True)
+    organization: Organization = Relationship(back_populates="workspaces")
+    users: List["User"] = Relationship(back_populates="workspace")
+    workspace_roles: List["WorkspaceRole"] = Relationship(back_populates="workspace")
+    calls: List["Call"] = Relationship(back_populates="workspace")
 
-    class Config:
-        orm_mode = True
-
-class UserSchema(BaseModel):
-    id: uuid.UUID
-    workspace_id: uuid.UUID
+class User(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    workspace_id: uuid.UUID = Field(foreign_key="workspace.id")
     name: str
     email: str
-    phone_number: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
-    deleted_at: Optional[datetime] = None
+    phone_number: str = Field(nullable=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    deleted_at: datetime = Field(nullable=True)
+    workspace: Workspace = Relationship(back_populates="users")
+    workspace_roles: List["WorkspaceRole"] = Relationship(back_populates="user")
+    call_participants: List["CallParticipant"] = Relationship(back_populates="user")
 
-    class Config:
-        orm_mode = True
-
-class WorkspaceRoleSchema(BaseModel):
-    id: uuid.UUID
-    workspace_id: uuid.UUID
-    user_id: uuid.UUID
+class WorkspaceRole(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    workspace_id: uuid.UUID = Field(foreign_key="workspace.id")
+    user_id: uuid.UUID = Field(foreign_key="user.id")
     role: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    workspace: Workspace = Relationship(back_populates="workspace_roles")
+    user: User = Relationship(back_populates="workspace_roles")
 
-    class Config:
-        orm_mode = True
-
-class CallSchema(BaseModel):
-    id: uuid.UUID
-    workspace_id: uuid.UUID
+class Call(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    workspace_id: uuid.UUID = Field(foreign_key="workspace.id")
     start_time: datetime
-    end_time: Optional[datetime] = None
+    end_time: datetime = Field(nullable=True)
     status: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    workspace: Workspace = Relationship(back_populates="calls")
+    call_participants: List["CallParticipant"] = Relationship(back_populates="call")
+    call_recordings: List["CallRecording"] = Relationship(back_populates="call")
+    conversations: List["Conversation"] = Relationship(back_populates="call")
 
-    class Config:
-        orm_mode = True
-
-class CallParticipantSchema(BaseModel):
-    id: uuid.UUID
-    call_id: uuid.UUID
-    user_id: uuid.UUID
+class CallParticipant(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    call_id: uuid.UUID = Field(foreign_key="call.id")
+    user_id: uuid.UUID = Field(foreign_key="user.id")
     role: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    call: Call = Relationship(back_populates="call_participants")
+    user: User = Relationship(back_populates="call_participants")
 
-    class Config:
-        orm_mode = True
-
-class CallRecordingSchema(BaseModel):
-    id: uuid.UUID
-    call_id: uuid.UUID
+class CallRecording(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    call_id: uuid.UUID = Field(foreign_key="call.id")
     recording_url: str
-    duration_in_seconds: Optional[float] = None
-    storage_bucket: Optional[str] = None
-    storage_object_key: Optional[str] = None
-    metadata: Optional[dict] = None
-    created_at: datetime
-    updated_at: datetime
+    duration_in_seconds: float = Field(nullable=True)
+    storage_bucket: str = Field(nullable=True)
+    storage_object_key: str = Field(nullable=True)
+    recording_metadata: str = Field(nullable=True)  # Assuming JSON string for simplicity
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    call: Call = Relationship(back_populates="call_recordings")
 
-    class Config:
-        orm_mode = True
-
-class ConversationSchema(BaseModel):
-    id: uuid.UUID
-    call_id: uuid.UUID
-    transcript: Optional[str] = None
-    summary: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        orm_mode = True
+class Conversation(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    call_id: uuid.UUID = Field(foreign_key="call.id")
+    transcript: str = Field(nullable=True)
+    summary: str = Field(nullable=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    call: Call = Relationship(back_populates="conversations")

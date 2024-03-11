@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.orm import sessionmaker
 from typing import Optional
 
@@ -10,6 +10,7 @@ class DatabaseConfig(ABC):
 
 class Database(ABC):
     def __init__(self):
+        self.async_engine = None
         self.async_sessionmaker: Optional[sessionmaker] = None
 
     @abstractmethod
