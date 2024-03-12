@@ -2,6 +2,7 @@ import io
 import re
 import logging
 import pickle
+import os
 
 from datetime import datetime
 from pydub import AudioSegment
@@ -22,8 +23,8 @@ from telegram.ext import (
     ContextTypes,
 )
 
-from miabot.models.models import Chat, TelegramUser, TelegramMessage
-from miabot.database.supabase import SupabaseConfig, SupabaseDB
+from emiliabot.models.models import Chat, TelegramUser, TelegramMessage
+from emiliabot.database.supabase import SupabaseConfig, SupabaseDB
 
 from telegram.ext._application import Application
 
@@ -52,15 +53,6 @@ class VocodeBotResponder:
         This function initizialize all the async components of the bot.
         """
         await self.database.initialize_database()
-
-    async def _format_goals_and_habits(self, goals_and_habits: Dict[str, str]):
-        """
-        This function formats the goals and habits into markdown format with each goal and habit as a header.
-        """
-        formatted_goals_and_habits = ""
-        for key, value in goals_and_habits.items():
-            formatted_goals_and_habits += f"# {key}\n\n{value}\n\n"
-        return formatted_goals_and_habits
 
     async def _remove_markdown_comments(self, message: str) -> str:
         """
@@ -184,21 +176,16 @@ class VocodeBotResponder:
 
         self.system_prompt = hub.pull(self.langsmith_system_prompt)
 
-        # Define the start text
-        start_text = (
-            "Hi! Let’s set and achieve your goals.\n\n"
-            "You can text or send voice notes to Mia. Mia will help you define your long-term goals and then drill down to quarterly, monthly, weekly, and finally daily goals. Mia will make sure to work on daily habits as well.\n\n"
-            "To begin, click on this link: /long_term_goals\n\n"
-            "If you’re ever stuck, simply write /help"
-        )
-
-        # erase the conversation history
         self.db[chat_id].current_conversation = None
-        await self.change_stage("onboarding-start", chat_id)
 
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id, text=start_text
+        agent_response, synth_response = await self.get_response(
+            int(chat_id),
+            "Hi, Emilia!",
         )
+        out_voice = io.BytesIO()
+        synth_response.export(out_f=out_voice, format="ogg", codec="libopus")  # type: ignore
+        await self._send_message(context, update.effective_chat.id, agent_response)
+        await context.bot.send_voice(chat_id=str(chat_id), voice=out_voice)
 
     async def handle_telegram_message(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -236,10 +223,19 @@ class VocodeBotResponder:
 
         # Get audio response from LLM/synth and reply
         agent_response, synth_response = await self.get_response(int(chat_id), input)
-        out_voice = io.BytesIO()
-        synth_response.export(out_f=out_voice, format="ogg", codec="libopus")  # type: ignore
-        await self._send_message(context, update.effective_chat.id, agent_response)
-        await context.bot.send_voice(chat_id=str(chat_id), voice=out_voice)
+        
+        voicenote_regex = r"this is the voicenote (\d+)"
+        match = re.match(voicenote_regex, agent_response)
+        if match:
+            voicenote_id = match.group(1)
+            voicenote_file = f"assets/audio/{voicenote_id}.ogg"
+            if os.path.exists(voicenote_file):
+                await context.bot.send_voice(chat_id=str(chat_id), voice=open(voicenote_file, 'rb'))
+        else:
+            out_voice = io.BytesIO()
+            synth_response.export(out_f=out_voice, format="ogg", codec="libopus")  # type: ignore
+            await self._send_message(context, update.effective_chat.id, agent_response)
+            await context.bot.send_voice(chat_id=str(chat_id), voice=out_voice)
 
     async def handle_telegram_status(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -317,222 +313,6 @@ class VocodeBotResponder:
                 language_code=update.effective_user.language_code,
             )
             await self.database.upsert_telegram_user(telegram_user)
-            # Create planning stages for the new user
-            await self.database.create_planning_stages_for_user(chat_id)
-            # start the onboarding stage
-            await self.database.start_onboarding_stage(chat_id, "onboarding-start")
-
-    async def change_stage(self, new_prompt_name: str, chat_id: int) -> None:
-        """
-        This function updates the system prompt with the new prompt provided. The new prompt is fetched
-        from the langchain hub using the provided name. This is an internal function and not a handler
-        for a telegram command.
-        """
-        current_stage = await self.database.get_current_onboarding_stage(chat_id)
-        if current_stage is not None:
-            await self.database.complete_onboarding_stage(chat_id, current_stage)
-        await self.database.start_onboarding_stage(chat_id, new_prompt_name)
-        self.log.debug(f"Changing stage from {current_stage} to {new_prompt_name}")
-
-        stored_messages_by_stage = (
-            await self.database.get_stored_messages_by_planning_stage(chat_id)
-        )
-        self.log.debug(f"Stored messages by stage: {stored_messages_by_stage}")
-
-        if new_prompt_name == "onboarding-start":
-            stage_prompt_name = self.langsmith_system_prompt
-            obj = hub.pull(stage_prompt_name)
-            current_date = datetime.now().strftime("%Y-%m-%d")
-            stage_prompt = self.system_prompt.format_messages(
-                current_date=current_date,
-                planning_stage_name="onboarding-start",
-                planning_stage_prompt="",
-                long_term_goals=stored_messages_by_stage["long-term-goals"],
-                trimester_goals=stored_messages_by_stage["trimester-goals"],
-                monthly_goals=stored_messages_by_stage["monthly-goals"],
-                daily_habits=stored_messages_by_stage["daily-habits"],
-                next_week_plan=stored_messages_by_stage["next-week-plan"],
-                question="",
-            )
-            self.str_system_prompt = stage_prompt[0].content
-            return
-
-        stage_prompt_name = f"artisanlabs/{new_prompt_name}"
-        # Fetch the new prompt from the langchain hub
-        # TODO: make async
-        obj = hub.pull(stage_prompt_name)
-
-        current_date = datetime.now().strftime("%Y-%m-%d")
-
-        stage_prompt = self.system_prompt.format_messages(
-            current_date=current_date,
-            planning_stage_name=new_prompt_name,
-            planning_stage_prompt=obj.messages[0].prompt.template,
-            long_term_goals=stored_messages_by_stage["long-term-goals"],
-            trimester_goals=stored_messages_by_stage["trimester-goals"],
-            monthly_goals=stored_messages_by_stage["monthly-goals"],
-            daily_habits=stored_messages_by_stage["daily-habits"],
-            next_week_plan=stored_messages_by_stage["next-week-plan"],
-            question="",
-        )
-        # Update the system prompt
-        self.str_system_prompt = stage_prompt[0].content
-
-    async def handle_telegram_long_term_goals(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        """
-        This function handles the '/long_term_goals' command from the user. It updates the system prompt
-        by calling the 'update_prompt' function with the 'long-term-goals' prompt from the langchain hub.
-        """
-        assert update.effective_chat, "Chat must be defined!"
-        chat_id = update.effective_chat.id
-
-        # Call the 'update_prompt' function with the 'long-term-goals' prompt
-        await self.change_stage("long-term-goals", chat_id=chat_id)
-        await context.bot.send_message(
-            chat_id=chat_id, text=f"Planning stage 'long-term-goals'."
-        )
-
-        react_text = "When a goal or habit works for you, save it by reacting with the ❤️ emoji. Mia will keep it in mind for later steps.\n\n"
-
-        await context.bot.send_video(
-            chat_id=update.effective_chat.id,
-            video=open("assets/videos/react.mp4", "rb"),
-            caption=react_text,
-        )
-
-        # Get audio response from LLM/synth and reply
-        agent_response, synth_response = await self.get_response(
-            int(chat_id), "Lets plan long term goals"
-        )
-        out_voice = io.BytesIO()
-        synth_response.export(out_f=out_voice, format="ogg", codec="libopus")  # type: ignore
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id, text=agent_response
-        )
-        await context.bot.send_voice(chat_id=str(chat_id), voice=out_voice)
-
-    async def handle_telegram_trimester_goals(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        """
-        This function handles the '/trimester_goals' command from the user. It updates the system prompt
-        by calling the 'update_prompt' function with the 'define-trimester-goals' prompt from the langchain hub.
-        """
-        assert update.effective_chat, "Chat must be defined!"
-        chat_id = update.effective_chat.id
-        # Call the 'update_prompt' function with the 'define-trimester-goals' prompt
-        await self.change_stage("trimester-goals", chat_id=chat_id)
-        await context.bot.send_message(
-            chat_id=chat_id, text=f"System prompt updated to 'trimester-goals'."
-        )
-        # Get audio response from LLM/synth and reply
-        agent_response, synth_response = await self.get_response(
-            int(chat_id),
-            "Lets break down my long term goals into smaller, achievable objectives for the next three months.",
-        )
-        out_voice = io.BytesIO()
-        synth_response.export(out_f=out_voice, format="ogg", codec="libopus")  # type: ignore
-        await self._send_message(context, update.effective_chat.id, agent_response)
-        await context.bot.send_voice(chat_id=str(chat_id), voice=out_voice)
-
-    async def handle_telegram_monthly_goals(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        """
-        This function handles the '/monthly_goals' command from the user. It updates the system prompt
-        by calling the 'update_prompt' function with the 'define-monthly-goals' prompt from the langchain hub.
-        """
-        assert update.effective_chat, "Chat must be defined!"
-        chat_id = update.effective_chat.id
-        # Call the 'update_prompt' function with the 'define-monthly-goals' prompt
-        await self.change_stage("monthly-goals", chat_id=chat_id)
-        await context.bot.send_message(
-            chat_id=chat_id, text=f"System prompt updated to 'monthly-goals'."
-        )
-        # Get audio response from LLM/synth and reply
-        agent_response, synth_response = await self.get_response(
-            int(chat_id),
-            "Lets further break down my trimester goals into monthly milestones.",
-        )
-        out_voice = io.BytesIO()
-        synth_response.export(out_f=out_voice, format="ogg", codec="libopus")  # type: ignore
-        await self._send_message(context, update.effective_chat.id, agent_response)
-        await context.bot.send_voice(chat_id=str(chat_id), voice=out_voice)
-
-    async def handle_telegram_daily_habits(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        """
-        This function handles the '/daily_habits' command from the user. It updates the system prompt
-        by calling the 'update_prompt' function with the 'daily-habits' prompt from the langchain hub.
-        """
-        assert update.effective_chat, "Chat must be defined!"
-        chat_id = update.effective_chat.id
-        # Call the 'update_prompt' function with the 'define-daily-habits' prompt
-        await self.change_stage("daily-habits", chat_id=chat_id)
-        await context.bot.send_message(
-            chat_id=chat_id, text=f"System prompt updated to 'daily-habits'."
-        )
-        # Get audio response from LLM/synth and reply
-        agent_response, synth_response = await self.get_response(
-            int(chat_id),
-            "Lets establish daily habits that align with my goals and "
-            "enable me to make progress on a consistent basis.",
-        )
-        out_voice = io.BytesIO()
-        synth_response.export(out_f=out_voice, format="ogg", codec="libopus")  # type: ignore
-        await self._send_message(context, update.effective_chat.id, agent_response)
-        await context.bot.send_voice(chat_id=str(chat_id), voice=out_voice)
-
-    async def handle_telegram_next_week_plan(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        """
-        this function handles the '/next-week-plan' command from the user. It updates the system prompt
-        by calling the 'update_prompt' function with the 'next-week-plan' prompt from the langchain hub.
-        """
-        assert update.effective_chat, "Chat must be defined!"
-        chat_id = update.effective_chat.id
-        # Call the 'update_prompt' function with the 'next-week-plan' prompt
-        await self.change_stage("next-week-plan", chat_id=chat_id)
-        await context.bot.send_message(
-            chat_id=chat_id, text=f"System prompt updated to 'next-week-plan'."
-        )
-        # Get audio response from LLM/synth and reply
-        agent_response, synth_response = await self.get_response(
-            int(chat_id), "Lets prepare a comprehensive plan for the upcoming week."
-        )
-        out_voice = io.BytesIO()
-        synth_response.export(out_f=out_voice, format="ogg", codec="libopus")  # type: ignore
-        await self._send_message(context, update.effective_chat.id, agent_response)
-        await context.bot.send_voice(chat_id=str(chat_id), voice=out_voice)
-
-    async def handle_telegram_next_day_plan(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        """
-        This function handles the '/next-day-plan' command from the user. It updates the system prompt
-        by calling the 'update_prompt' function with the 'next-day-plan' prompt from the langchain hub.
-        """
-        assert update.effective_chat, "Chat must be defined!"
-        chat_id = update.effective_chat.id
-        # Call the 'update_prompt' function with the 'next-day-plan' prompt
-        await self.change_stage("next-day-plan", chat_id=chat_id)
-        await context.bot.send_message(
-            chat_id=chat_id, text=f"System prompt updated to 'next-day-plan'."
-        )
-        # Get audio response from LLM/synth and reply
-        agent_response, synth_response = await self.get_response(
-            int(chat_id),
-            "Lets prepare a comprehensive plan for next day, "
-            "taking into account my personal and professional commitments.",
-        )
-        out_voice = io.BytesIO()
-        synth_response.export(out_f=out_voice, format="ogg", codec="libopus")  # type: ignore
-        await self._send_message(context, update.effective_chat.id, agent_response)
-        await context.bot.send_voice(chat_id=str(chat_id), voice=out_voice)
 
     async def handle_telegram_unknown_cmd(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -612,13 +392,6 @@ class VocodeBotResponder:
             "- Send me a voice message, and I'll reply with a voice message.\n"
             "- Use /start to begin the onboarding process.\n"
             "- Use /status to display the status of the user in the onboarding process.\n"
-            "- Use /long_term_goals to set your long-term goals.\n"
-            "- Use /trimester_goals to define your goals for the trimester.\n"
-            "- Use /monthly_goals to define your goals for the month.\n"
-            "- Use /daily_habits to define your daily habits.\n"
-            "- Use /next_week_plan to plan your next week.\n"
-            "- Use /next_day_plan to plan your next day.\n"
-            "- Use /list_goals_and_habits to list all your stored goals and habits.\n"
         )
         assert update.effective_chat, "Chat must be defined!"
         # if isinstance(self.synthesizer, CoquiSynthesizer):

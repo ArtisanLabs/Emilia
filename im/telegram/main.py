@@ -15,8 +15,8 @@ from langchain import hub
 from vocode.turn_based.synthesizer import AzureSynthesizer
 from vocode.turn_based.transcriber import WhisperTranscriber
 
-from miabot.miabot import VocodeBotResponder
-from miabot.database.supabase import SupabaseConfig
+from emiliabot.emiliabot import VocodeBotResponder
+from emiliabot.database.supabase import SupabaseConfig
 
 from dotenv import load_dotenv
 
@@ -70,10 +70,10 @@ DABASE_CONFIG = SupabaseConfig(url=os.environ["SUPABASE_URL"], key=os.environ["S
 
 if os.environ.get("BETA", "0") == "1":
     TELEGRAM_BOT_KEY = os.environ["BETA_TELEGRAM_BOT_KEY"]
-    LANGSMITH_SYSTEM_PROMPT = "artisanlabs/mia-beta"
+    LANGSMITH_SYSTEM_PROMPT = "artisanlabs/emilia"
 else:
     TELEGRAM_BOT_KEY = os.environ["TELEGRAM_BOT_KEY"]
-    LANGSMITH_SYSTEM_PROMPT = "artisanlabs/mia"
+    LANGSMITH_SYSTEM_PROMPT = "artisanlabs/emilia"
 
 ##############################################
 ## CONFIGURATION END
@@ -96,14 +96,6 @@ def main() -> None:
         MessageHandler(~filters.COMMAND, voco.handle_telegram_message)
     )
     application.add_handler(CommandHandler("status", voco.handle_telegram_status))
-    application.add_handler(CommandHandler("detail_status", voco.handle_telegram_detail_status))
-    application.add_handler(CommandHandler("long_term_goals", voco.handle_telegram_long_term_goals))
-    application.add_handler(CommandHandler("trimester_goals", voco.handle_telegram_trimester_goals))
-    application.add_handler(CommandHandler("monthly_goals", voco.handle_telegram_monthly_goals))
-    application.add_handler(CommandHandler("daily_habits", voco.handle_telegram_daily_habits))
-    application.add_handler(CommandHandler("next_week_plan", voco.handle_telegram_next_week_plan))
-    application.add_handler(CommandHandler("next_day_plan", voco.handle_telegram_next_day_plan))
-    application.add_handler(CommandHandler("list_goals_and_habits", voco.handle_telegram_list_goals_and_habits))
     application.add_handler(CommandHandler("help", voco.handle_telegram_help))
     application.add_handler(
         MessageHandler(filters.COMMAND, voco.handle_telegram_unknown_cmd)

@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, List
 from postgrest.base_request_builder import APIResponse
 
-from miabot.models.models import TelegramUser, TelegramMessage, PlanningStage
+from emiliabot.models.models import TelegramUser, TelegramMessage, PlanningStage
 
 
 class SupabaseConfig(BaseModel):
