@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "flowise": "^1.6.4"
+  }
+}

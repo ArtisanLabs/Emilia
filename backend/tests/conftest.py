@@ -1,15 +1,24 @@
+import asyncio
 import pytest
+import pytest_asyncio
 
 from sqlalchemy.orm import sessionmaker
 
 from sqlmodel import SQLModel
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from emilia.settings import Settings
+from emilia.settings import Settings, TestSqliteSettings
 from emilia.database.postgres import PostgresDatabase, DatabasePostgresConfig
 from emilia.database.sqlite import SqliteDatabase, DatabaseSqliteConfig
 
 settings = Settings()
+test_sqlite_settings = TestSqliteSettings()
+
+@pytest.fixture(scope="session")
+def event_loop(request):
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
 
 @pytest.fixture
 async def test_db():
@@ -43,28 +52,46 @@ async def test_db():
 
     await test_db.async_engine.dispose()
 
-@pytest.fixture(name="sqlite_db")
-async def fixture_sqlite_db():
+@pytest.fixture(scope="class")
+async def sqlite_engine(event_loop):
     # Configure test SQLite database
-    test_db_config = DatabaseSqliteConfig(db_name="test.db")
+    
+    test_db_config = DatabaseSqliteConfig(
+        db_name=test_sqlite_settings.DATABASE_NAME
+    )
     sqlite_db = SqliteDatabase(config=test_db_config)
     sqlite_db.setup()
 
     # Create async session maker
-    async_engine = create_async_engine(test_db_config.get_connection_string())
-    async_session_maker = sessionmaker(
-        async_engine, class_=AsyncSession, expire_on_commit=False
-    )
-
-    # Create tables
-    async with async_engine.begin() as conn:
+    sqlite_engine = create_async_engine(
+        test_db_config.get_connection_string(),
+        future=True,
+        echo=True
+        )
+    
+    async with sqlite_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.run_sync(SQLModel.metadata.create_all)
 
-    # Yield session for testing
-    async with async_session_maker() as session:
-        yield session
+    yield sqlite_engine
 
-    # Drop tables and dispose engine after tests
-    async with async_engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
-    await async_engine.dispose()
+
+@pytest_asyncio.fixture()
+async def session(sqlite_engine):
+    SessionLocal = sessionmaker(
+        bind=sqlite_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autocommit=False,
+        autoflush=False,
+    )
+
+    async with sqlite_engine.connect() as conn:
+        tsx = await conn.begin()
+        async with SessionLocal(bind=conn) as session:
+            nested_tsx = await conn.begin_nested()
+            yield session
+
+            if nested_tsx.is_active:
+                await nested_tsx.rollback()
+            await tsx.rollback()
